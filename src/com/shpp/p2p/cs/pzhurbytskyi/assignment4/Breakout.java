@@ -35,12 +35,12 @@ public class Breakout extends WindowProgram {
     /**
      * Number of bricks per row
      */
-    private static final int NBRICKS_PER_ROW = 10;
+    private static final int NBRICKS_PER_ROW = 5;
 
     /**
      * Number of rows of bricks
      */
-    private static final int NBRICK_ROWS = 5;
+    private static final int NBRICK_ROWS = 1;
 
     /**
      * Separation between bricks
@@ -50,7 +50,7 @@ public class Breakout extends WindowProgram {
     /**
      * It's a bad idea to calculate brick width from APPLICATION_WIDTH
      */
-    private static final int BRICK_WIDTH = (APPLICATION_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / NBRICKS_PER_ROW;
+    private static final int BRICK_WIDTH = (APPLICATION_WIDTH) / NBRICKS_PER_ROW;
 
     /**
      * Height of a brick
@@ -76,46 +76,40 @@ public class Breakout extends WindowProgram {
     private static final double FPS = 1000 / 60.0;
 
     private double vx, vy;
-    private int attempts = 3;
+
 
     /* The object which has been selected for dragging. */
     private GObject paddle;
-    private int bricksCounter = NBRICK_ROWS*NBRICKS_PER_ROW;
+    private GRect rocket;
+    private GOval ball;
+    private int bricksCounter = NBRICK_ROWS * NBRICKS_PER_ROW;
 
 
     /**
      *
      */
     public void run() {
-        startGame(attempts);
+        startGame(NTURNS);
 
     }
 
     /**
-     *
      * @param attempts
      */
-    private void startGame(int attempts){
+    private void startGame(int attempts) {
         createWall(NBRICK_ROWS, NBRICKS_PER_ROW);
         addMouseListeners();
         createPaddle();
-        while(attempts!=0){
+        while (attempts > 0) {
             createBallOnWindow();
-            if(bricksCounter==0){
-                GLabel label = new GLabel("Congratulation!",getWidth()/2, getHeight()/2);
-                label.setFont("Verdana-"+APPLICATION_HEIGHT/10);
-                label.setColor(Color.RED);
-                add(label);
-                break;
+            attempts = bounceBall(attempts);
+            if (bricksCounter == 0 && attempts != 0) {
+                createLabel("Congratulation!");
+                return;
             }
+            pause(3000);
         }
-        if(attempts==0){
-            GLabel label = new GLabel("GAME OVER!",getWidth()/2, getHeight()/2);
-            label.setFont("Verdana-"+APPLICATION_HEIGHT/10);
-            label.setColor(Color.RED);
-            add(label);
-        }
-
+        createLabel("GAME OVER");
     }
 
 
@@ -125,32 +119,26 @@ public class Breakout extends WindowProgram {
     private void createPaddle() {
         double x = (getWidth() - PADDLE_WIDTH) / 2.0;
         double y = getHeight() - PADDLE_Y_OFFSET;
-        paddle = createGRect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
-        add(paddle);
+        rocket = createGRect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
+        add(rocket);
     }
 
-    /**
-     * This method creating colored ball in center of window.
-     */
+    private void createLabel(String text){
+        GLabel label = new GLabel(text);
+        label.setFont("Verdana-" + Math.min(APPLICATION_HEIGHT, APPLICATION_WIDTH) / 10);
+        label.setColor(Color.RED);
+        label.setLocation((getWidth() - label.getWidth()) / 2, getHeight() / 2.0);
+        add(label);
+    }
+
     private void createBallOnWindow() {
         double x = getWidth() / 2.0 - BALL_RADIUS;
         double y = getHeight() / 2.0 - BALL_RADIUS;
-        GOval ball = createBall(x, y, BALL_RADIUS * 2, BALL_COLOR);
+        ball = createBall(x, y, BALL_RADIUS * 2, BALL_COLOR);
         add(ball);
-        bounceBall(ball);
     }
 
 
-    /**
-     * This method create colored rectangle.
-     *
-     * @param x
-     * @param y
-     * @param width  width of rect.
-     * @param height height of rect.
-     * @param color  color of rect.
-     * @return ready rect.
-     */
     private GRect createGRect(double x, double y, double width, double height, Color color) {
         GRect gRect = new GRect(x, y, width, height);
         gRect.setFilled(true);
@@ -158,13 +146,6 @@ public class Breakout extends WindowProgram {
         return gRect;
     }
 
-    /**
-     * @param x
-     * @param y
-     * @param diameter
-     * @param color
-     * @return
-     */
     private GOval createBall(double x, double y, double diameter, Color color) {
         GOval ball = new GOval(x, y, diameter, diameter);
         ball.setFilled(true);
@@ -172,70 +153,44 @@ public class Breakout extends WindowProgram {
         return ball;
     }
 
-    /**
-     * @param e the event to be processed
-     */
+
     @Override
     public void mouseDragged(MouseEvent e) {
         /* If there is something to drag at all, go move it. */
-        if (paddle != null && paddle instanceof GRect) {
+        if (paddle != null && paddle == rocket) {
             double newX = e.getX() - paddle.getWidth() / 2.0;
             if (newX < 0) {
                 newX = 0;
-            } else if (newX > getWidth()) {
+            } else if (newX + paddle.getWidth() > getWidth()) {
                 newX = getWidth() - PADDLE_WIDTH;
             }
             paddle.setLocation(newX, paddle.getY());
         }
     }
 
-    /**
-     * @param e the event to be processed
-     */
+
     public void mousePressed(MouseEvent e) {
         paddle = getElementAt(e.getX(), e.getY());
     }
 
 
-    /**
-     * @param ball
-     * @return
-     */
     private boolean ballOnTopBorder(GOval ball) {
         return ball.getY() <= 0;
     }
 
-    /**
-     * @param ball
-     * @return
-     */
-    private boolean ballOnRightBorder(GOval ball) {
-        return ball.getX() + 2 * BALL_RADIUS > getWidth();
+    private boolean sideWallsBorder(GOval ball) {
+        return ball.getX() + 2 * BALL_RADIUS > getWidth()||ball.getX() <= 0;
     }
 
-    /**
-     *
-     * @param ball
-     * @return
-     */
-    private boolean ballOnLeftBorder(GOval ball) {
-        return ball.getX() <= 0;
+
+
+    private boolean ballUnderTheBottomBorder(GOval ball) {
+        return ball.getY() >= getHeight();
     }
 
-    private boolean ballUnderThePuddle(GOval ball){
-        return ball.getY()>paddle.getY();
-    }
 
-    /**
-     *
-     * @param ball
-     */
-    private void bounceBall(GOval ball) {
-        /* Track the downward velocity (dy is short for "delta-y.") */
+    private int bounceBall(int attempts) {
         vy = 3;
-        /* This loops forever. Maybe we should change it to stop when the
-         * ball rolls off the right side of the screen!
-         */
         RandomGenerator rgen = RandomGenerator.getInstance();
         vx = rgen.nextDouble(1.0, 3.0);
         if (rgen.nextBoolean(0.5))
@@ -246,32 +201,32 @@ public class Breakout extends WindowProgram {
             ball.move(vx, vy);
             GObject collider = getCollidingObject(ball);
 
-            /* Gravity pulls downward, increasing downward acceleration. */
-
-            /* If the ball drops below the floor, we turn it around. There's
-             * a tricky case to watch out for - if the ball is already in
-             * the floor, we don't turn it around.
-             */
-            if (collider == paddle && paddle!=null) {
+            if (collider == paddle && paddle != null ) {
                 vy = -vy;
-            } else if (collider !=paddle  && collider!=null) {
+            } else if (collider != rocket && collider != null) {
                 vy = -vy;
                 remove(collider);
                 bricksCounter--;
             } else if (ballOnTopBorder(ball)) {
                 vy = -vy;
-            } else if (ballOnRightBorder(ball)) {
+            } else if (sideWallsBorder(ball)) {
                 vx = -vx;
-            } else if (ballOnLeftBorder(ball)) {
-                vx = -vx;
-            } else if (ballUnderThePuddle(ball)) {
-                attempts--;
             }
+
+            if (ballUnderTheBottomBorder(ball)) {
+                attempts--;
+                remove(ball);
+                break;
+            }
+
+            if (bricksCounter == 0) {
+                return attempts;
+            }
+
 
             pause(FPS);
         }
-
-
+        return attempts;
     }
 
 
@@ -288,40 +243,38 @@ public class Breakout extends WindowProgram {
             return topLeftCorner;
         } else if (topRightCorner != null) {
             return topRightCorner;
-        } else if (bottomLeftCorner!=null) {
+        } else if (bottomLeftCorner != null) {
             return bottomLeftCorner;
         } else return bottomRightCorner;
     }
 
     /**
-     *
      * @param rowNumber
      * @param colNumber
      */
-    private void createWall(int rowNumber, int colNumber){
-        for (int i = 0; i<rowNumber; i++){
+    private void createWall(int rowNumber, int colNumber) {
+        for (int i = 0; i < rowNumber; i++) {
             createRow(i, colNumber);
         }
     }
 
 
     /**
-     *
      * @param currentLevel
      * @param colNumber
      */
     private void createRow(int currentLevel, int colNumber) {
-        for (int i = 0; i<colNumber; i++){
+        for (int i = 0; i < colNumber; i++) {
             createBrick(i, currentLevel);
         }
     }
 
     private void createBrick(int brickNumber, int levelNumber) {
-        double x = (getWidth() - NBRICKS_PER_ROW*BRICK_WIDTH)/2.0;
+        double x = (getWidth() - NBRICKS_PER_ROW * BRICK_WIDTH) / 2.0;
         double y = BRICK_Y_OFFSET;
-        GRect brick = createGRect(x+brickNumber*(BRICK_WIDTH),
-                y + levelNumber*BRICK_HEIGHT,
-                BRICK_WIDTH, BRICK_HEIGHT,Color.CYAN);
+        GRect brick = createGRect(x + brickNumber * (BRICK_WIDTH),
+                y + levelNumber * BRICK_HEIGHT,
+                BRICK_WIDTH, BRICK_HEIGHT, Color.CYAN);
         add(brick);
     }
 
