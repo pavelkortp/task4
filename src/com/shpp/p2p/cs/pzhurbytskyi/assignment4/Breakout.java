@@ -35,12 +35,12 @@ public class Breakout extends WindowProgram {
     /**
      * Number of bricks per row
      */
-    private static final int NBRICKS_PER_ROW = 5;
+    private static final int NBRICKS_PER_ROW = 10;
 
     /**
      * Number of rows of bricks
      */
-    private static final int NBRICK_ROWS = 1;
+    private static final int NBRICK_ROWS = 10;
 
     /**
      * Separation between bricks
@@ -50,7 +50,7 @@ public class Breakout extends WindowProgram {
     /**
      * It's a bad idea to calculate brick width from APPLICATION_WIDTH
      */
-    private static final int BRICK_WIDTH = (APPLICATION_WIDTH) / NBRICKS_PER_ROW;
+    private static final int BRICK_WIDTH = (APPLICATION_WIDTH - NBRICKS_PER_ROW * (BRICK_SEP + 1)) / NBRICKS_PER_ROW;
 
     /**
      * Height of a brick
@@ -71,11 +71,11 @@ public class Breakout extends WindowProgram {
     /**
      * Number of turns
      */
-    private static final int NTURNS = 3;
+    private static final int NTURNS = 1000;
 
     private static final double FPS = 1000 / 60.0;
 
-    private double vx, vy;
+    private double vx, vy = 3;
 
 
     /* The object which has been selected for dragging. */
@@ -123,7 +123,7 @@ public class Breakout extends WindowProgram {
         add(rocket);
     }
 
-    private void createLabel(String text){
+    private void createLabel(String text) {
         GLabel label = new GLabel(text);
         label.setFont("Verdana-" + Math.min(APPLICATION_HEIGHT, APPLICATION_WIDTH) / 10);
         label.setColor(Color.RED);
@@ -179,10 +179,23 @@ public class Breakout extends WindowProgram {
     }
 
     private boolean sideWallsBorder(GOval ball) {
-        return ball.getX() + 2 * BALL_RADIUS > getWidth()||ball.getX() <= 0;
+        return ball.getX() + 2 * BALL_RADIUS >= getWidth() || ball.getX() <= 0;
     }
 
+    private boolean isPaddleContainPoint(double x, double y) {
+        return rocket.getX() <= x && x <= rocket.getX() + rocket.getWidth() &&
+                rocket.getY() <= y && y <= rocket.getY() + getHeight();
+    }
 
+    private boolean rightSideRocketBorder(GOval ball) {
+        return isPaddleContainPoint(ball.getX(), ball.getY()) ||
+                isPaddleContainPoint(ball.getX(), ball.getY() + ball.getHeight());
+    }
+
+    private boolean leftSideRocketBorder(GOval ball) {
+        return isPaddleContainPoint(ball.getX() + ball.getWidth(), ball.getY()) ||
+                isPaddleContainPoint(ball.getX() + ball.getWidth(), ball.getY() + ball.getHeight());
+    }
 
     private boolean ballUnderTheBottomBorder(GOval ball) {
         return ball.getY() >= getHeight();
@@ -190,12 +203,12 @@ public class Breakout extends WindowProgram {
 
 
     private int bounceBall(int attempts) {
-        vy = 3;
         RandomGenerator rgen = RandomGenerator.getInstance();
         vx = rgen.nextDouble(1.0, 3.0);
         if (rgen.nextBoolean(0.5))
             vx = -vx;
 
+        boolean reboundFromRocket = true;
         while (true) {
             /* Move the ball by the current velocity. */
             ball.move(vx, vy);
@@ -203,14 +216,34 @@ public class Breakout extends WindowProgram {
 
             if (collider == paddle && paddle != null ) {
                 vy = -vy;
-            } else if (collider != rocket && collider != null) {
+                reboundFromRocket = false;
+                while (ball.getY()+ball.getHeight()>= rocket.getY()){
+                    ball.move(vx, vy);
+                    pause(FPS);
+                }
+            } else if (collider != rocket && collider != null ) {
                 vy = -vy;
                 remove(collider);
                 bricksCounter--;
-            } else if (ballOnTopBorder(ball)) {
+                reboundFromRocket = false;
+            } else if (ballOnTopBorder(ball) ) {
                 vy = -vy;
-            } else if (sideWallsBorder(ball)) {
+                reboundFromRocket = false;
+            } else if (sideWallsBorder(ball) ) {
                 vx = -vx;
+                reboundFromRocket = false;
+            } else if (rightSideRocketBorder(ball) ) {
+                print("Yes");
+                vx = -vx;
+                reboundFromRocket = false;
+            } else if (leftSideRocketBorder(ball)) {
+                print("Yes2");
+                vx = -vx;
+                reboundFromRocket = false;
+            }
+
+            if (getCollidingObject(ball) == null && !sideWallsBorder(ball) && !ballOnTopBorder(ball) ) {
+                reboundFromRocket = true;
             }
 
             if (ballUnderTheBottomBorder(ball)) {
@@ -234,18 +267,35 @@ public class Breakout extends WindowProgram {
      * @return
      */
     private GObject getCollidingObject(GOval ball) {
-        GObject topLeftCorner = getElementAt(ball.getX(), ball.getY());
-        GObject topRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY());
-        GObject bottomLeftCorner = getElementAt(ball.getX(), ball.getY() + 2 * BALL_RADIUS);
-        GObject bottomRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY() + 2 * BALL_RADIUS);
+//        GObject topLeftCorner = getElementAt(ball.getX(), ball.getY());
+//        GObject topRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY());
+//        GObject bottomLeftCorner = getElementAt(ball.getX(), ball.getY() + 2 * BALL_RADIUS);
+//        GObject bottomRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY() + 2 * BALL_RADIUS);
 
-        if (topLeftCorner != null) {
-            return topLeftCorner;
-        } else if (topRightCorner != null) {
-            return topRightCorner;
-        } else if (bottomLeftCorner != null) {
-            return bottomLeftCorner;
-        } else return bottomRightCorner;
+        GObject leftMiddlePoint = getElementAt(ball.getX() - 1, ball.getY() + BALL_RADIUS);
+        GObject topMiddlePoint = getElementAt(ball.getX() + BALL_RADIUS, ball.getY() - 1);
+        GObject rightMiddlePoint = getElementAt(ball.getX() + 2 * BALL_RADIUS + 1, ball.getY() + BALL_RADIUS);
+        GObject bottomMiddlePoint = getElementAt(ball.getX() + BALL_RADIUS, ball.getY() + 2 * BALL_RADIUS + 1);
+
+//        if (topLeftCorner != null) {
+//            return topLeftCorner;
+//        } else if (topRightCorner != null) {
+//            return topRightCorner;
+//        } else if (bottomLeftCorner != null) {
+//            return bottomLeftCorner;
+//        } else if (bottomRightCorner != null) {
+//            return bottomRightCorner;
+//        } else
+        if (leftMiddlePoint != null) {
+            return leftMiddlePoint;
+        } else if (topMiddlePoint != null) {
+            return topMiddlePoint;
+        } else if (rightMiddlePoint != null) {
+            return rightMiddlePoint;
+        } else {
+            return bottomMiddlePoint;
+        }
+
     }
 
     /**
@@ -270,10 +320,10 @@ public class Breakout extends WindowProgram {
     }
 
     private void createBrick(int brickNumber, int levelNumber) {
-        double x = (getWidth() - NBRICKS_PER_ROW * BRICK_WIDTH) / 2.0;
+        double x = (getWidth() - (BRICK_WIDTH + BRICK_SEP) * NBRICKS_PER_ROW + BRICK_SEP) / 2;
         double y = BRICK_Y_OFFSET;
-        GRect brick = createGRect(x + brickNumber * (BRICK_WIDTH),
-                y + levelNumber * BRICK_HEIGHT,
+        GRect brick = createGRect(x + brickNumber * (BRICK_WIDTH + BRICK_SEP),
+                y + levelNumber * (BRICK_HEIGHT + BRICK_SEP),
                 BRICK_WIDTH, BRICK_HEIGHT, Color.CYAN);
         add(brick);
     }
