@@ -26,14 +26,15 @@ public class Breakout extends WindowProgram {
     private static final int PADDLE_Y_OFFSET = 30;
 
     //Number of bricks per row.
-    private static final int N_BRICKS_PER_ROW = 3;
+    private static final int N_BRICKS_PER_ROW = 10;
     //Number of rows of bricks.
-    private static final int N_BRICK_ROWS = 1;
+    private static final int N_BRICK_ROWS = 10;
 
     //Separation between bricks.
     private static final int BRICK_SEP = 4;
     //Calculate Brick's width.
-    private static final int BRICK_WIDTH = (APPLICATION_WIDTH - N_BRICKS_PER_ROW * (BRICK_SEP + 1)) / N_BRICKS_PER_ROW;
+    private static final int BRICK_WIDTH =
+            (APPLICATION_WIDTH - N_BRICKS_PER_ROW * (BRICK_SEP + 1)) / N_BRICKS_PER_ROW;
     //Height of a brick
     private static final int BRICK_HEIGHT = 8;
     //Offset of the top brick row from the top
@@ -50,9 +51,8 @@ public class Breakout extends WindowProgram {
     private static final Color[] WALL_COLORS =
             new Color[]{Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.CYAN};
 
-
     //Number of turns
-    private static final int TURNS_NUMBER = 1;
+    private static final int TURNS_NUMBER = 3;
 
     //Frame per second
     private static final double FPS = 1000 / 60.0;
@@ -64,15 +64,13 @@ public class Breakout extends WindowProgram {
     private GObject controlObject;
     // Rocket which we beat on ball
     private GRect racket;
-    //Ball which can move
-    private GOval ball;
+
 
     /**
      * In this method we're playing in game "Breakout"
      */
     public void run() {
         startGame(TURNS_NUMBER);
-
     }
 
     /**
@@ -84,11 +82,12 @@ public class Breakout extends WindowProgram {
     private void startGame(int attempts) {
         createWallOnWindow(N_BRICK_ROWS, N_BRICKS_PER_ROW);
         addMouseListeners();
-        createRacketOnWindow();
+        spawnRacketOnWindow();
         //play the game while we have attempts.
+        GOval ball = createCircle(0, 0, BALL_RADIUS * 2, BALL_COLOR);
         while (attempts > 0) {
-            createBallOnWindow();
-            attempts = bounceBall(attempts);
+            spawnBallOnWindow(ball);
+            attempts = bounceBall(ball, attempts);
             // if user destroy all bricks -> win, so we show to user that he/she win.
             if (bricksCounter == 0) {
                 createLabel("Congratulation!");
@@ -108,7 +107,7 @@ public class Breakout extends WindowProgram {
     /**
      * This method creating racket on window program.
      */
-    private void createRacketOnWindow() {
+    private void spawnRacketOnWindow() {
         double x = (getWidth() - PADDLE_WIDTH) / 2.0;
         double y = getHeight() - PADDLE_Y_OFFSET;
         racket = createGRect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
@@ -132,10 +131,10 @@ public class Breakout extends WindowProgram {
     /**
      * This method create the game ball and spawn it in center of window.
      */
-    private void createBallOnWindow() {
+    private void spawnBallOnWindow(GOval ball) {
         double x = getWidth() / 2.0 - BALL_RADIUS;
         double y = getHeight() / 2.0 - BALL_RADIUS;
-        ball = createBall(x, y, BALL_RADIUS * 2, BALL_COLOR);
+        ball.setLocation(x, y);
         add(ball);
     }
 
@@ -167,7 +166,7 @@ public class Breakout extends WindowProgram {
      * @param color    body color of ball.
      * @return created ball with params.
      */
-    private GOval createBall(double x, double y, double diameter, Color color) {
+    private GOval createCircle(double x, double y, double diameter, Color color) {
         GOval ball = new GOval(x, y, diameter, diameter);
         ball.setFilled(true);
         ball.setColor(color);
@@ -278,7 +277,7 @@ public class Breakout extends WindowProgram {
      * @param attempts starting count of attempts.
      * @return count of attempts which are left.
      */
-    private int bounceBall(int attempts) {
+    private int bounceBall(GOval ball, int attempts) {
         //calculate the x velocity for to make the ball move in any direction at the beginning of the game.
         RandomGenerator randomGenerator = RandomGenerator.getInstance();
         vx = randomGenerator.nextDouble(1.0, 3.0);
@@ -428,8 +427,9 @@ public class Breakout extends WindowProgram {
 
     /**
      * This method create colored bricks for the wall and add it to window.
-     * @param brickNumber number of brick in current layer.
-     * @param layerNumber number of layer.
+     *
+     * @param brickNumber  number of brick in current layer.
+     * @param layerNumber  number of layer.
      * @param currentColor color of bricks for this layer.
      */
     private void createBrick(int brickNumber, int layerNumber, Color currentColor) {
