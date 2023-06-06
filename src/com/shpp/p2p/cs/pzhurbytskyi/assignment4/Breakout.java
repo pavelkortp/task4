@@ -26,28 +26,33 @@ public class Breakout extends WindowProgram {
     private static final int PADDLE_Y_OFFSET = 30;
 
     //Number of bricks per row.
-    private static final int NBRICKS_PER_ROW = 10;
+    private static final int N_BRICKS_PER_ROW = 3;
     //Number of rows of bricks.
-    private static final int NBRICK_ROWS = 5;
+    private static final int N_BRICK_ROWS = 1;
 
     //Separation between bricks.
     private static final int BRICK_SEP = 4;
     //Calculate Brick's width.
-    private static final int BRICK_WIDTH = (APPLICATION_WIDTH - NBRICKS_PER_ROW * (BRICK_SEP + 1)) / NBRICKS_PER_ROW;
+    private static final int BRICK_WIDTH = (APPLICATION_WIDTH - N_BRICKS_PER_ROW * (BRICK_SEP + 1)) / N_BRICKS_PER_ROW;
     //Height of a brick
     private static final int BRICK_HEIGHT = 8;
     //Offset of the top brick row from the top
     private static final int BRICK_Y_OFFSET = 70;
     //count of our bricks
-    private static final int BRICKS_COUNTER = NBRICK_ROWS * NBRICKS_PER_ROW;
+    private int bricksCounter = N_BRICK_ROWS * N_BRICKS_PER_ROW;
 
     //Radius of the ball in pixels
     private static final int BALL_RADIUS = 10;
     //Ball color
     private static final Color BALL_COLOR = Color.BLACK;
 
+    //Wall colors
+    private static final Color[] WALL_COLORS =
+            new Color[]{Color.RED, Color.ORANGE, Color.YELLOW, Color.GREEN, Color.CYAN};
+
+
     //Number of turns
-    private static final int NTURNS = 3;
+    private static final int TURNS_NUMBER = 1;
 
     //Frame per second
     private static final double FPS = 1000 / 60.0;
@@ -56,7 +61,7 @@ public class Breakout extends WindowProgram {
     private double vx, vy = 4;
 
     //The object which has been selected for dragging.
-    private GObject object;
+    private GObject controlObject;
     // Rocket which we beat on ball
     private GRect racket;
     //Ball which can move
@@ -66,7 +71,7 @@ public class Breakout extends WindowProgram {
      * In this method we're playing in game "Breakout"
      */
     public void run() {
-        startGame(NTURNS);
+        startGame(TURNS_NUMBER);
 
     }
 
@@ -77,15 +82,15 @@ public class Breakout extends WindowProgram {
      * @param attempts count of ball "lives".
      */
     private void startGame(int attempts) {
-        createWall(NBRICK_ROWS, NBRICKS_PER_ROW);
+        createWallOnWindow(N_BRICK_ROWS, N_BRICKS_PER_ROW);
         addMouseListeners();
-        createRacket();
+        createRacketOnWindow();
         //play the game while we have attempts.
         while (attempts > 0) {
             createBallOnWindow();
-            attempts = bounceBall(attempts, BRICKS_COUNTER);
+            attempts = bounceBall(attempts);
             // if user destroy all bricks -> win, so we show to user that he/she win.
-            if (BRICKS_COUNTER == 0 && attempts != 0) {
+            if (bricksCounter == 0) {
                 createLabel("Congratulation!");
                 return;
             }
@@ -103,7 +108,7 @@ public class Breakout extends WindowProgram {
     /**
      * This method creating racket on window program.
      */
-    private void createRacket() {
+    private void createRacketOnWindow() {
         double x = (getWidth() - PADDLE_WIDTH) / 2.0;
         double y = getHeight() - PADDLE_Y_OFFSET;
         racket = createGRect(x, y, PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_COLOR);
@@ -178,16 +183,16 @@ public class Breakout extends WindowProgram {
     @Override
     public void mouseDragged(MouseEvent e) {
         // check if we hold the racket
-        if (object != null && object == racket) {
+        if (controlObject != null && controlObject == racket) {
             //attach the center of racket to the cursor.
-            double newX = e.getX() - object.getWidth() / 2.0;
+            double newX = e.getX() - controlObject.getWidth() / 2.0;
             // if cursor beyond the window, racket stay in window
             if (newX < 0) {
                 newX = 0;
-            } else if (newX + object.getWidth() > getWidth()) {
+            } else if (newX + controlObject.getWidth() > getWidth()) {
                 newX = getWidth() - PADDLE_WIDTH;
             }
-            object.setLocation(newX, object.getY());
+            controlObject.setLocation(newX, controlObject.getY());
         }
     }
 
@@ -198,7 +203,7 @@ public class Breakout extends WindowProgram {
      * @param e the event to be processed
      */
     public void mousePressed(MouseEvent e) {
-        object = getElementAt(e.getX(), e.getY());
+        controlObject = getElementAt(e.getX(), e.getY());
     }
 
 
@@ -219,7 +224,7 @@ public class Breakout extends WindowProgram {
      * @return True if ball has touched left or right window's border, or False if not.
      */
     private boolean sideWallsBorder(GOval ball) {
-        return ball.getX() + 2 * BALL_RADIUS >= getWidth() || ball.getX() <= 0;
+        return ball.getX() + ball.getWidth() >= getWidth() || ball.getX() <= 0;
     }
 
     /**
@@ -267,76 +272,86 @@ public class Breakout extends WindowProgram {
         return ball.getY() >= getHeight();
     }
 
-
     /**
      * This method moving ball in cycle, and handles its collisions with various objects.
      *
-     * @param attempts      starting count of attempts.
-     * @param bricksCounter
+     * @param attempts starting count of attempts.
      * @return count of attempts which are left.
      */
-    private int bounceBall(int attempts, int bricksCounter) {
-
+    private int bounceBall(int attempts) {
         //calculate the x velocity for to make the ball move in any direction at the beginning of the game.
-        RandomGenerator rgen = RandomGenerator.getInstance();
-        vx = rgen.nextDouble(1.0, 3.0);
-        if (rgen.nextBoolean(0.5))
+        RandomGenerator randomGenerator = RandomGenerator.getInstance();
+        vx = randomGenerator.nextDouble(1.0, 3.0);
+        if (randomGenerator.nextBoolean(0.5))
             vx = -vx;
-
-        boolean reboundFromRocket = true;
         while (true) {
             /* Move the ball by the current velocity. */
             ball.move(vx, vy);
-            GObject collider = getCollidingObject(ball);
-
-            if (collider == object && object != null) {
-                vy = -vy;
-                reboundFromRocket = false;
-                while (ball.getY() + ball.getHeight() >= racket.getY()) {
-                    ball.move(vx, vy);
-                    pause(FPS);
-                }
-            } else if (collider != racket && collider != null) {
-                vy = -vy;
-                remove(collider);
-                bricksCounter--;
-                reboundFromRocket = false;
-            } else if (ballOnTopBorder(ball)) {
-                vy = -vy;
-                reboundFromRocket = false;
-            } else if (sideWallsBorder(ball)) {
-                vx = -vx;
-                reboundFromRocket = false;
-            } else if (rightSideRocketBorder(ball)) {
-                print("Yes");
-                vx = -vx;
-                reboundFromRocket = false;
-            } else if (leftSideRocketBorder(ball)) {
-                print("Yes2");
-                vx = -vx;
-                reboundFromRocket = false;
-            }
-
-            if (getCollidingObject(ball) == null && !sideWallsBorder(ball) && !ballOnTopBorder(ball)) {
-                reboundFromRocket = true;
-            }
-
+            // handle ball collisions
+            ballReflection(ball);
+            // if ball fall decrease attempts.
             if (ballUnderTheBottomBorder(ball)) {
                 attempts--;
                 remove(ball);
                 break;
             }
-
+            //if we destroy all bricks -> we win.
             if (bricksCounter == 0) {
                 return attempts;
             }
-
-
             pause(FPS);
         }
         return attempts;
     }
 
+    /**
+     * This method is responsible for the movement of the ball, its reflection from
+     * the bricks of the walls and the racket.
+     *
+     * @param ball ball which we bounce.
+     */
+    private void ballReflection(GOval ball) {
+        GObject collidingObj = getCollidingObject(ball);
+        if (collidingObj == controlObject && controlObject != null) {
+            reflectionFromTopRacketPart(ball);
+        } else if (collidingObj != null) {
+            vy = -vy;
+            remove(collidingObj);
+            bricksCounter--;
+        } else if (ballOnTopBorder(ball)) {
+            vy = -vy;
+        } else if (rightSideRocketBorder(ball) || leftSideRocketBorder(ball)) {
+            vx = -vx;
+        } else if (sideWallsBorder(ball)) {
+            reflectionFromWalls(ball);
+        }
+    }
+
+    /**
+     * This method bounces ball off the top part of racket.
+     *
+     * @param ball ball which we bounce.
+     */
+    private void reflectionFromTopRacketPart(GOval ball) {
+        vy = -vy;
+        while (ball.getY() + ball.getHeight() >= racket.getY()) {
+            ball.move(vx, vy);
+            pause(FPS);
+        }
+    }
+
+    /**
+     * This method bounces the ball off the walls.
+     *
+     * @param ball ball which we bounce.
+     */
+    private void reflectionFromWalls(GOval ball) {
+        vx = -vx;
+        while (sideWallsBorder(ball)) {
+            ball.move(vx, vy);
+            pause(FPS);
+        }
+    }
 
     /**
      * This method check object Which the ball touched with one of its sides.
@@ -372,21 +387,28 @@ public class Breakout extends WindowProgram {
             return topMiddlePoint;
         } else if (rightMiddlePoint != null) {
             return rightMiddlePoint;
-        } else {
-            return bottomMiddlePoint;
         }
+        return bottomMiddlePoint;
 
     }
 
     /**
-     * This method creates a multilayer wall of bricks.
+     * This method creates a colored multilayer wall of bricks.
      *
      * @param rowNumber count of layers.
      * @param colNumber width of one layer.
      */
-    private void createWall(int rowNumber, int colNumber) {
+    private void createWallOnWindow(int rowNumber, int colNumber) {
+        //number of rows which have same color.
+        int n = (int) Math.ceil(Math.max(rowNumber / (double) WALL_COLORS.length, 1));
+        //number of color in mas WALL_COLORS
+        int colorNumber = 0;
         for (int i = 0; i < rowNumber; i++) {
-            createRow(i, colNumber);
+            Color rowColor = WALL_COLORS[Math.min(colorNumber, WALL_COLORS.length - 1)];
+            if ((i + 1) % n == 0) {
+                colorNumber++;
+            }
+            createRow(i, colNumber, rowColor);
         }
     }
 
@@ -396,27 +418,28 @@ public class Breakout extends WindowProgram {
      *
      * @param currentLevel number of current layer
      * @param colNumber    width oo one layer.
+     * @param currentColor color of wall.
      */
-    private void createRow(int currentLevel, int colNumber) {
+    private void createRow(int currentLevel, int colNumber, Color currentColor) {
         for (int i = 0; i < colNumber; i++) {
-            createBrick(i, currentLevel);
+            createBrick(i, currentLevel, currentColor);
         }
     }
 
     /**
-     * This method create bricks for the wall and add it to window.
-     *
+     * This method create colored bricks for the wall and add it to window.
      * @param brickNumber number of brick in current layer.
-     * @param layerNumber number of layer
+     * @param layerNumber number of layer.
+     * @param currentColor color of bricks for this layer.
      */
-    private void createBrick(int brickNumber, int layerNumber) {
+    private void createBrick(int brickNumber, int layerNumber, Color currentColor) {
         //center the brick's x coord.
-        double x = (getWidth() - (BRICK_WIDTH + BRICK_SEP) * NBRICKS_PER_ROW + BRICK_SEP) / 2.0;
+        double x = (getWidth() - (BRICK_WIDTH + BRICK_SEP) * N_BRICKS_PER_ROW + BRICK_SEP) / 2.0;
         // for bricks on first layer y coord is a y-offset from top border of window
         double y = BRICK_Y_OFFSET;
         GRect brick = createGRect(x + brickNumber * (BRICK_WIDTH + BRICK_SEP),
                 y + layerNumber * (BRICK_HEIGHT + BRICK_SEP),
-                BRICK_WIDTH, BRICK_HEIGHT, Color.CYAN);
+                BRICK_WIDTH, BRICK_HEIGHT, currentColor);
         add(brick);
     }
 
