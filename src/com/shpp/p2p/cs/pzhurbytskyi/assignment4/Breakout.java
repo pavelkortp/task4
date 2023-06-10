@@ -28,13 +28,11 @@ public class Breakout extends WindowProgram {
     //Number of bricks per row.
     private static final int N_BRICKS_PER_ROW = 10;
     //Number of rows of bricks.
-    private static final int N_BRICK_ROWS = 10;
+    private static final int N_BRICK_ROWS = 1;
 
     //Separation between bricks.
     private static final int BRICK_SEP = 4;
-    //Calculate Brick's width.
-    private static final int BRICK_WIDTH =
-            (APPLICATION_WIDTH - N_BRICKS_PER_ROW * (BRICK_SEP + 1)) / N_BRICKS_PER_ROW;
+
     //Height of a brick
     private static final int BRICK_HEIGHT = 8;
     //Offset of the top brick row from the top
@@ -83,9 +81,11 @@ public class Breakout extends WindowProgram {
         createWallOnWindow(N_BRICK_ROWS, N_BRICKS_PER_ROW);
         addMouseListeners();
         spawnRacketOnWindow();
+
         //play the game while we have attempts.
         GOval ball = createCircle(0, 0, BALL_RADIUS * 2, BALL_COLOR);
         while (attempts > 0) {
+            waitForClick();
             spawnBallOnWindow(ball);
             attempts = bounceBall(ball, attempts);
             // if user destroy all bricks -> win, so we show to user that he/she win.
@@ -93,11 +93,6 @@ public class Breakout extends WindowProgram {
                 createLabel("Congratulation!");
                 return;
             }
-            /*
-            if ball fall, we make a little pause for user so that he/she
-            has time to prepare for the next attempt.
-             */
-            pause(2000);
         }
         //If the attempts are over, it means that you have lost.
         createLabel("GAME OVER");
@@ -360,27 +355,21 @@ public class Breakout extends WindowProgram {
      */
     private GObject getCollidingObject(GOval ball) {
         //We try to get element in corners
-        GObject topLeftCorner = getElementAt(ball.getX(), ball.getY());
-        GObject topRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY());
-        GObject bottomLeftCorner = getElementAt(ball.getX(), ball.getY() + 2 * BALL_RADIUS);
-        GObject bottomRightCorner = getElementAt(ball.getX() + 2 * BALL_RADIUS, ball.getY() + 2 * BALL_RADIUS);
-
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+                GObject corner = getElementAt(ball.getX() + 2 * BALL_RADIUS * i, ball.getY() + 2 * BALL_RADIUS * j);
+                if (corner != null) {
+                    return corner;
+                }
+            }
+        }
         //We try to get element on sides(to, right, left, bottom)
         GObject leftMiddlePoint = getElementAt(ball.getX() - 1, ball.getY() + BALL_RADIUS);
         GObject topMiddlePoint = getElementAt(ball.getX() + BALL_RADIUS, ball.getY() - 1);
         GObject rightMiddlePoint = getElementAt(ball.getX() + 2 * BALL_RADIUS + 1, ball.getY() + BALL_RADIUS);
         GObject bottomMiddlePoint = getElementAt(ball.getX() + BALL_RADIUS, ball.getY() + 2 * BALL_RADIUS + 1);
 
-        //check every touch point
-        if (topLeftCorner != null) {
-            return topLeftCorner;
-        } else if (topRightCorner != null) {
-            return topRightCorner;
-        } else if (bottomLeftCorner != null) {
-            return bottomLeftCorner;
-        } else if (bottomRightCorner != null) {
-            return bottomRightCorner;
-        } else if (leftMiddlePoint != null) {
+        if (leftMiddlePoint != null) {
             return leftMiddlePoint;
         } else if (topMiddlePoint != null) {
             return topMiddlePoint;
@@ -413,11 +402,11 @@ public class Breakout extends WindowProgram {
 
 
     /**
-     * This method create on layer of wall.
+     * This method create layer of wall.
      *
      * @param currentLevel number of current layer
      * @param colNumber    width oo one layer.
-     * @param currentColor color of wall.
+     * @param currentColor color of layer.
      */
     private void createRow(int currentLevel, int colNumber, Color currentColor) {
         for (int i = 0; i < colNumber; i++) {
@@ -433,13 +422,15 @@ public class Breakout extends WindowProgram {
      * @param currentColor color of bricks for this layer.
      */
     private void createBrick(int brickNumber, int layerNumber, Color currentColor) {
+        //Calculate Brick's width.
+        int brickWidth = (getWidth() - (N_BRICKS_PER_ROW - 1) * BRICK_SEP) / N_BRICKS_PER_ROW;
         //center the brick's x coord.
-        double x = (getWidth() - (BRICK_WIDTH + BRICK_SEP) * N_BRICKS_PER_ROW + BRICK_SEP) / 2.0;
+        double x = (getWidth() - (brickWidth + BRICK_SEP) * N_BRICKS_PER_ROW + BRICK_SEP) / 2.0;
         // for bricks on first layer y coord is a y-offset from top border of window
-        double y = BRICK_Y_OFFSET;
-        GRect brick = createGRect(x + brickNumber * (BRICK_WIDTH + BRICK_SEP),
+        int y = BRICK_Y_OFFSET;
+        GRect brick = createGRect(x + brickNumber * (brickWidth + BRICK_SEP),
                 y + layerNumber * (BRICK_HEIGHT + BRICK_SEP),
-                BRICK_WIDTH, BRICK_HEIGHT, currentColor);
+                brickWidth, BRICK_HEIGHT, currentColor);
         add(brick);
     }
 
